@@ -8,6 +8,58 @@ from pathlib import Path
 st.set_page_config(page_title="연구실적 대시보드", layout="wide")
 
 DEFAULT_FILE = Path(__file__).parent / "rawdata_2608.xlsx"
+MONTH_ORDER = ["3월", "4월", "5월", "6월", "7월", "8월", "9월", "10월", "11월", "12월", "1월", "2월"]
+
+BG_COLOR = "#F5F7FA"
+SIDEBAR_COLOR = "#0D2B5E"
+HIGHLIGHT_YEAR = "2026"
+HIGHLIGHT_COLOR = "#E8392A"
+BASE_YEAR_COLOR = "#93B8E0"
+
+st.markdown(
+    f"""
+    <style>
+    @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap');
+
+    html, body, [class*="css"] {{
+        font-family: 'Noto Sans KR', sans-serif;
+    }}
+
+    .stApp {{
+        background-color: {BG_COLOR};
+    }}
+
+    section[data-testid="stSidebar"] {{
+        background-color: {SIDEBAR_COLOR};
+    }}
+    section[data-testid="stSidebar"] h1,
+    section[data-testid="stSidebar"] h2,
+    section[data-testid="stSidebar"] h3,
+    section[data-testid="stSidebar"] p,
+    section[data-testid="stSidebar"] label,
+    section[data-testid="stSidebar"] span,
+    section[data-testid="stSidebar"] .stMarkdown {{
+        color: #FFFFFF !important;
+    }}
+    section[data-testid="stSidebar"] div[data-baseweb="select"] * {{
+        color: {SIDEBAR_COLOR} !important;
+    }}
+
+    .footnote {{
+        margin-top: 28px;
+        padding-top: 12px;
+        border-top: 1px solid #D0D5DD;
+        font-size: 12px;
+        color: #8A8F98;
+    }}
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
+
+
+def render_footnote(text):
+    st.markdown(f"<div class='footnote'>{text}</div>", unsafe_allow_html=True)
 
 
 def month_to_int(value):
@@ -25,17 +77,33 @@ def load_data(file):
     xls = pd.ExcelFile(file)
     sheet_names = xls.sheet_names
 
-    df_perf = pd.read_excel(xls, sheet_name=sheet_names[0])
+    perf_sheet = "Sheet1" if "Sheet1" in sheet_names else sheet_names[0]
+    df_perf = pd.read_excel(xls, sheet_name=perf_sheet)
     df_perf.columns = [str(c).strip() for c in df_perf.columns]
     df_perf["월"] = df_perf["월"].apply(month_to_int)
     df_perf["승인월"] = pd.to_datetime(df_perf["승인일자"], errors="coerce").dt.month
 
-    collab_sheet = "Sheet2" if "Sheet2" in sheet_names else sheet_names[-1]
+    collab_sheet = "Sheet2" if "Sheet2" in sheet_names else sheet_names[1]
     df_collab = pd.read_excel(xls, sheet_name=collab_sheet)
     df_collab.columns = [str(c).strip() for c in df_collab.columns]
     df_collab["월_num"] = df_collab["월"].apply(month_to_int)
 
-    return df_perf, df_collab
+    year_sheets = {}
+    for name in sheet_names:
+        if str(name).strip().isdigit():
+            df_year = pd.read_excel(xls, sheet_name=name)
+            df_year.columns = [str(c).strip() for c in df_year.columns]
+            first_col = df_year.columns[0]
+            df_year = df_year.set_index(first_col)
+            year_sheets[str(name).strip()] = df_year
+
+    return df_perf, df_collab, year_sheets
+
+
+def month_delta(current, previous):
+    if previous is None or previous == 0:
+        return None
+    return f"{(current - previous) / previous * 100:+.1f}%"
 
 
 st.sidebar.title("연구실적 대시보드")
@@ -46,7 +114,7 @@ if uploaded is None and not DEFAULT_FILE.exists():
     st.error("데이터 파일을 찾을 수 없습니다. 사이드바에서 엑셀 파일을 업로드해주세요.")
     st.stop()
 
-df_perf, df_collab = load_data(file_to_use)
+df_perf, df_collab, year_sheets = load_data(file_to_use)
 
 all_months = sorted(
     set(df_perf["월"].dropna().astype(int)) | set(df_collab["월_num"].dropna().astype(int))
@@ -60,17 +128,14 @@ selected_month = st.sidebar.selectbox(
     "기준월 선택", all_months, index=all_months.index(default_month), format_func=lambda m: f"{m}월"
 )
 
-page = st.sidebar.radio("페이지 선택", ["이달 연구실적 개요", "산학협력 실적 개요"])
+page = st.sidebar.radio(
+    "페이지 선택",
+    ["이달 연구실적 개요", "연도별 월별 실적 추이", "산학협력 실적 개요"],
+)
 
 file_label = file_to_use.name if hasattr(file_to_use, "name") else Path(file_to_use).name
 st.sidebar.markdown("---")
 st.sidebar.caption(f"기준월: {selected_month}월 · 데이터 파일: {file_label}")
-
-
-def month_delta(current, previous):
-    if previous is None or previous == 0:
-        return None
-    return f"{(current - previous) / previous * 100:+.1f}%"
 
 
 if page == "이달 연구실적 개요":
@@ -112,26 +177,84 @@ if page == "이달 연구실적 개요":
         trend_df = pd.DataFrame({"월": [f"{m}월" for m in trend.index], "실적 건수": trend.values})
         fig = px.line(trend_df, x="월", y="실적 건수", markers=True)
         fig.update_traces(line_color="#378ADD")
-        fig.update_layout(margin=dict(t=20, l=10, r=10, b=10))
+        fig.update_layout(margin=dict(t=20, l=10, r=10, b=10), plot_bgcolor="white", paper_bgcolor="white")
         st.plotly_chart(fig, use_container_width=True)
 
     with col2:
         st.subheader(f"소속별 실적 건수 ({selected_month}월)")
-        by_dept = this_month_perf.groupby("소속(대)").size().sort_values(ascending=True)
+        by_dept = this_month_perf.groupby("소속(대)").size().sort_values(ascending=False)
         fig = px.bar(
-            x=by_dept.values,
-            y=by_dept.index,
-            orientation="h",
-            labels={"x": "실적 건수", "y": "소속(대)"},
+            x=by_dept.index,
+            y=by_dept.values,
+            labels={"x": "소속(대)", "y": "실적 건수"},
         )
         fig.update_traces(marker_color="#1D9E75")
-        fig.update_layout(margin=dict(t=20, l=10, r=10, b=10))
+        fig.update_layout(
+            margin=dict(t=20, l=10, r=10, b=10), xaxis_tickangle=-30, plot_bgcolor="white", paper_bgcolor="white"
+        )
         st.plotly_chart(fig, use_container_width=True)
 
     st.markdown("---")
     st.subheader(f"{selected_month}월 실적 상세")
     display_cols = [c for c in ["성명", "소속(대)", "구분명칭", "연구분류", "참여구분", "일자", "승인일자", "평가점수"] if c in this_month_perf.columns]
     st.dataframe(this_month_perf[display_cols], use_container_width=True, hide_index=True)
+
+    render_footnote("※ Sheet1 데이터 기준이며, 승인 건수는 승인일자의 월을 기준으로 집계됩니다.")
+
+elif page == "연도별 월별 실적 추이":
+    st.title("연도별 월별 실적 추이")
+
+    if not year_sheets:
+        st.warning("연도별 실적 시트(2023, 2024 ... 형태)를 찾을 수 없습니다.")
+    else:
+        categories = sorted(set().union(*[set(df.index.dropna()) for df in year_sheets.values()]))
+        category = st.selectbox("구분 선택", ["전체"] + categories)
+
+        available_months = [m for m in MONTH_ORDER if any(m in df.columns for df in year_sheets.values())]
+
+        trend_data = {}
+        for year in sorted(year_sheets.keys()):
+            df_year = year_sheets[year]
+            cols = [m for m in available_months if m in df_year.columns]
+            if category == "전체":
+                series = df_year[cols].sum(axis=0, skipna=True, min_count=1)
+            elif category in df_year.index:
+                series = df_year.loc[category, cols]
+            else:
+                series = pd.Series([None] * len(cols), index=cols)
+            trend_data[year] = series.reindex(available_months)
+
+        trend_df = pd.DataFrame(trend_data).reindex(available_months)
+        trend_df.index.name = "월"
+        plot_df = trend_df.reset_index().melt(id_vars="월", var_name="연도", value_name="실적 건수")
+        plot_df["월"] = pd.Categorical(plot_df["월"], categories=available_months, ordered=True)
+        plot_df = plot_df.sort_values("월")
+
+        color_map = {year: (HIGHLIGHT_COLOR if year == HIGHLIGHT_YEAR else BASE_YEAR_COLOR) for year in trend_data.keys()}
+
+        fig = px.line(plot_df, x="월", y="실적 건수", color="연도", markers=True, color_discrete_map=color_map)
+        for trace in fig.data:
+            if trace.name == HIGHLIGHT_YEAR:
+                trace.line.width = 4
+                trace.marker.size = 9
+                trace.opacity = 1
+            else:
+                trace.line.width = 2
+                trace.marker.size = 6
+                trace.opacity = 0.55
+        fig.update_layout(
+            margin=dict(t=20, l=10, r=10, b=10), legend_title_text="연도", plot_bgcolor="white", paper_bgcolor="white"
+        )
+        st.plotly_chart(fig, use_container_width=True)
+
+        st.markdown("---")
+        st.subheader("연도별 월별 실적 표")
+        st.dataframe(trend_df, use_container_width=True)
+
+        render_footnote(
+            f"※ 2023~{max(trend_data.keys())} 시트 기준이며, {HIGHLIGHT_YEAR}년은 빨간색으로 강조 표시됩니다. "
+            "아직 데이터가 없는 미래 월은 빈 값으로 처리되어 선이 끊깁니다."
+        )
 
 else:
     st.title("산학협력 실적 개요")
@@ -146,10 +269,10 @@ else:
 
     st.markdown("---")
 
-    st.subheader(f"{selected_month}월 분류별 제안 수 / 선정 수")
+    st.subheader(f"{selected_month}월 분류별 제안 수 대비 선정 수")
     by_type = this_month_collab.groupby("분류")[["제안 수", "선정 수"]].sum().reset_index()
     fig = px.bar(by_type, x="분류", y=["제안 수", "선정 수"], barmode="group")
-    fig.update_layout(margin=dict(t=20, l=10, r=10, b=10), legend_title_text="")
+    fig.update_layout(margin=dict(t=20, l=10, r=10, b=10), legend_title_text="", plot_bgcolor="white", paper_bgcolor="white")
     st.plotly_chart(fig, use_container_width=True)
 
     st.markdown("---")
@@ -178,9 +301,13 @@ else:
     )
     fig.update_yaxes(title_text="선정 수", secondary_y=False)
     fig.update_yaxes(title_text="금액(억원)", secondary_y=True)
-    fig.update_layout(margin=dict(t=20, l=10, r=10, b=10), legend_title_text="")
+    fig.update_layout(
+        margin=dict(t=20, l=10, r=10, b=10), legend_title_text="", plot_bgcolor="white", paper_bgcolor="white"
+    )
     st.plotly_chart(fig, use_container_width=True)
 
     st.markdown("---")
     st.subheader(f"{selected_month}월 산학협력 상세")
     st.dataframe(this_month_collab, use_container_width=True, hide_index=True)
+
+    render_footnote("※ Sheet2 데이터 기준이며, 금액 단위는 억원입니다.")
