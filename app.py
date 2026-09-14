@@ -14,7 +14,50 @@ BG_COLOR = "#F5F7FA"
 SIDEBAR_COLOR = "#0D2B5E"
 HIGHLIGHT_YEAR = "2026"
 HIGHLIGHT_COLOR = "#E8392A"
-BASE_YEAR_COLOR = "#93B8E0"
+
+LIGHT_BLUE = "#DCEAF7"
+DARK_BLUE = "#1D5FA8"
+
+
+def _hex_to_rgb(h):
+    h = h.lstrip("#")
+    return tuple(int(h[i : i + 2], 16) for i in (0, 2, 4))
+
+
+def _rgb_to_hex(rgb):
+    return "#{:02X}{:02X}{:02X}".format(*[round(c) for c in rgb])
+
+
+def blue_gradient(n):
+    """가장 오래된 연도가 가장 옅고, 최신일수록 짙어지는 파란색 n개를 반환"""
+    if n <= 1:
+        return [DARK_BLUE]
+    c1, c2 = _hex_to_rgb(LIGHT_BLUE), _hex_to_rgb(DARK_BLUE)
+    return [
+        _rgb_to_hex(tuple(c1[i] + (c2[i] - c1[i]) * (step / (n - 1)) for i in range(3)))
+        for step in range(n)
+    ]
+
+
+DEPT_ORDER = [
+    "인문대학",
+    "사회과학대학",
+    "경영대학",
+    "미디어·휴먼라이프대학",
+    "인공지능·소프트웨어융합대학",
+    "미래융합대학",
+    "화학·생명과학대학",
+    "스마트시스템공과대학",
+    "반도체·ICT대학",
+    "스포츠·예술대학",
+    "건축대학",
+    "방목기초교육대학",
+    "(일반)대학원",
+    "기록정보과학전문대학원",
+    "통합치료대학원",
+    "교육대학원",
+    "스포츠학부(체육학전공, 스포츠산업학전공)",
+]
 
 st.markdown(
     f"""
@@ -60,6 +103,17 @@ st.markdown(
 
 def render_footnote(text):
     st.markdown(f"<div class='footnote'>{text}</div>", unsafe_allow_html=True)
+
+
+def apply_chart_style(fig, legend=True):
+    """차트의 범례·축 제목·눈금 레이블 글자 크기를 키워 가독성을 높인다."""
+    fig.update_layout(
+        font=dict(size=15),
+        legend=dict(font=dict(size=15), title_font=dict(size=15)) if legend else fig.layout.legend,
+        xaxis=dict(title_font=dict(size=15), tickfont=dict(size=13)),
+        yaxis=dict(title_font=dict(size=15), tickfont=dict(size=13)),
+    )
+    return fig
 
 
 def month_to_int(value):
@@ -178,11 +232,16 @@ if page == "이달 연구실적 개요":
         fig = px.line(trend_df, x="월", y="실적 건수", markers=True)
         fig.update_traces(line_color="#378ADD")
         fig.update_layout(margin=dict(t=20, l=10, r=10, b=10), plot_bgcolor="white", paper_bgcolor="white")
+        apply_chart_style(fig, legend=False)
         st.plotly_chart(fig, use_container_width=True)
 
     with col2:
         st.subheader(f"소속별 실적 건수 ({selected_month}월)")
-        by_dept = this_month_perf.groupby("소속(대)").size().sort_values(ascending=False)
+        by_dept = this_month_perf.groupby("소속(대)").size()
+        ordered_depts = [d for d in DEPT_ORDER if d in by_dept.index] + [
+            d for d in by_dept.index if d not in DEPT_ORDER
+        ]
+        by_dept = by_dept.reindex(ordered_depts)
         fig = px.bar(
             x=by_dept.index,
             y=by_dept.values,
@@ -192,6 +251,7 @@ if page == "이달 연구실적 개요":
         fig.update_layout(
             margin=dict(t=20, l=10, r=10, b=10), xaxis_tickangle=-30, plot_bgcolor="white", paper_bgcolor="white"
         )
+        apply_chart_style(fig, legend=False)
         st.plotly_chart(fig, use_container_width=True)
 
     st.markdown("---")
@@ -230,7 +290,10 @@ elif page == "연도별 월별 실적 추이":
         plot_df["월"] = pd.Categorical(plot_df["월"], categories=available_months, ordered=True)
         plot_df = plot_df.sort_values("월")
 
-        color_map = {year: (HIGHLIGHT_COLOR if year == HIGHLIGHT_YEAR else BASE_YEAR_COLOR) for year in trend_data.keys()}
+        non_highlight_years = sorted(y for y in trend_data.keys() if y != HIGHLIGHT_YEAR)
+        gradient = blue_gradient(len(non_highlight_years))
+        color_map = dict(zip(non_highlight_years, gradient))
+        color_map[HIGHLIGHT_YEAR] = HIGHLIGHT_COLOR
 
         fig = px.line(plot_df, x="월", y="실적 건수", color="연도", markers=True, color_discrete_map=color_map)
         for trace in fig.data:
@@ -245,6 +308,7 @@ elif page == "연도별 월별 실적 추이":
         fig.update_layout(
             margin=dict(t=20, l=10, r=10, b=10), legend_title_text="연도", plot_bgcolor="white", paper_bgcolor="white"
         )
+        apply_chart_style(fig)
         st.plotly_chart(fig, use_container_width=True)
 
         st.markdown("---")
@@ -273,6 +337,7 @@ else:
     by_type = this_month_collab.groupby("분류")[["제안 수", "선정 수"]].sum().reset_index()
     fig = px.bar(by_type, x="분류", y=["제안 수", "선정 수"], barmode="group")
     fig.update_layout(margin=dict(t=20, l=10, r=10, b=10), legend_title_text="", plot_bgcolor="white", paper_bgcolor="white")
+    apply_chart_style(fig)
     st.plotly_chart(fig, use_container_width=True)
 
     st.markdown("---")
@@ -299,10 +364,16 @@ else:
         ),
         secondary_y=True,
     )
-    fig.update_yaxes(title_text="선정 수", secondary_y=False)
-    fig.update_yaxes(title_text="금액(억원)", secondary_y=True)
+    fig.update_yaxes(title_text="선정 수", secondary_y=False, title_font=dict(size=15), tickfont=dict(size=13))
+    fig.update_yaxes(title_text="금액(억원)", secondary_y=True, title_font=dict(size=15), tickfont=dict(size=13))
+    fig.update_xaxes(tickfont=dict(size=13))
     fig.update_layout(
-        margin=dict(t=20, l=10, r=10, b=10), legend_title_text="", plot_bgcolor="white", paper_bgcolor="white"
+        margin=dict(t=20, l=10, r=10, b=10),
+        legend_title_text="",
+        plot_bgcolor="white",
+        paper_bgcolor="white",
+        font=dict(size=15),
+        legend=dict(font=dict(size=15)),
     )
     st.plotly_chart(fig, use_container_width=True)
 
