@@ -302,20 +302,20 @@ def page_overview():
 
     fig2 = go.Figure()
     fig2.add_trace(go.Bar(
-        y=ordered_depts, x=vals_prev, name="Sheet1-1 (전월 기준)",
-        orientation="h", marker_color=COLOR_BASE,
+        x=ordered_depts, y=vals_prev, name="Sheet1-1 (전월 기준)",
+        marker_color=COLOR_BASE,
     ))
     fig2.add_trace(go.Bar(
-        y=ordered_depts, x=vals_new, name="Sheet1 (이번달 기준)",
-        orientation="h", marker_color=COLOR_HIGHLIGHT,
+        x=ordered_depts, y=vals_new, name="Sheet1 (이번달 기준)",
+        marker_color=COLOR_HIGHLIGHT,
     ))
     fig2.update_layout(
         barmode="group",
-        yaxis=dict(autorange="reversed"),
-        xaxis_title="실적 건수 (건)",
-        height=max(520, 34 * len(ordered_depts)),
-        margin=dict(l=10, r=10, t=40, b=10),
+        yaxis_title="실적 건수 (건)",
+        height=520,
+        margin=dict(l=10, r=10, t=40, b=120),
     )
+    fig2.update_xaxes(tickangle=-45)
     apply_chart_style(fig2)
     st.plotly_chart(fig2, use_container_width=True)
 
