@@ -266,59 +266,58 @@ def page_overview():
 
     st.markdown("<br>", unsafe_allow_html=True)
 
-    col_a, col_b = st.columns(2)
+    # 월별 실적 건수 추이 (Sheet1 vs Sheet1-1 비교) - 전체 폭
+    st.markdown('<div class="section-title">월별 실적 건수 추이</div>', unsafe_allow_html=True)
+    all_months = sorted(set(df["월"].dropna().astype(int)) | set(df_prev["월"].dropna().astype(int)))
+    monthly_new = df.groupby("월").size().reindex(all_months)
+    monthly_prev = df_prev.groupby("월").size().reindex(all_months)
 
-    # 월별 실적 건수 추이 (Sheet1 vs Sheet1-1 비교)
-    with col_a:
-        st.markdown('<div class="section-title">월별 실적 건수 추이</div>', unsafe_allow_html=True)
-        all_months = sorted(set(df["월"].dropna().astype(int)) | set(df_prev["월"].dropna().astype(int)))
-        monthly_new = df.groupby("월").size().reindex(all_months)
-        monthly_prev = df_prev.groupby("월").size().reindex(all_months)
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(
+        x=[f"{m}월" for m in all_months], y=monthly_prev.values,
+        mode="lines+markers", name="Sheet1-1 (전월 기준)",
+        line=dict(color=COLOR_BASE, width=2.5), marker=dict(size=6),
+    ))
+    fig.add_trace(go.Scatter(
+        x=[f"{m}월" for m in all_months], y=monthly_new.values,
+        mode="lines+markers", name="Sheet1 (이번달 기준)",
+        line=dict(color=COLOR_HIGHLIGHT, width=4), marker=dict(size=8),
+    ))
+    fig.update_layout(yaxis_title="실적 건수 (건)", height=380)
+    apply_chart_style(fig)
+    st.plotly_chart(fig, use_container_width=True)
 
-        fig = go.Figure()
-        fig.add_trace(go.Scatter(
-            x=[f"{m}월" for m in all_months], y=monthly_prev.values,
-            mode="lines+markers", name="Sheet1-1 (전월 기준)",
-            line=dict(color=COLOR_BASE, width=2.5), marker=dict(size=6),
-        ))
-        fig.add_trace(go.Scatter(
-            x=[f"{m}월" for m in all_months], y=monthly_new.values,
-            mode="lines+markers", name="Sheet1 (이번달 기준)",
-            line=dict(color=COLOR_HIGHLIGHT, width=4), marker=dict(size=8),
-        ))
-        fig.update_layout(yaxis_title="실적 건수 (건)")
-        apply_chart_style(fig)
-        st.plotly_chart(fig, use_container_width=True)
+    st.markdown("<br>", unsafe_allow_html=True)
 
-    # 소속별 실적 건수 차트 (Sheet1 vs Sheet1-1 비교)
-    with col_b:
-        st.markdown('<div class="section-title">소속별 실적 건수</div>', unsafe_allow_html=True)
-        dept_new = df.groupby("소속(대)").size()
-        dept_prev = df_prev.groupby("소속(대)").size()
-        all_depts = set(dept_new.index) | set(dept_prev.index)
-        ordered_depts = [d for d in DEPT_ORDER if d in all_depts]
-        ordered_depts += [d for d in all_depts if d not in DEPT_ORDER]
+    # 소속별 실적 건수 차트 (Sheet1 vs Sheet1-1 비교) - 전체 폭 가로 막대
+    st.markdown('<div class="section-title">소속별 실적 건수</div>', unsafe_allow_html=True)
+    dept_new = df.groupby("소속(대)").size()
+    dept_prev = df_prev.groupby("소속(대)").size()
+    all_depts = set(dept_new.index) | set(dept_prev.index)
+    ordered_depts = [d for d in DEPT_ORDER if d in all_depts]
+    ordered_depts += [d for d in all_depts if d not in DEPT_ORDER]
 
-        vals_new = [dept_new.get(d, 0) for d in ordered_depts]
-        vals_prev = [dept_prev.get(d, 0) for d in ordered_depts]
+    vals_new = [dept_new.get(d, 0) for d in ordered_depts]
+    vals_prev = [dept_prev.get(d, 0) for d in ordered_depts]
 
-        fig2 = go.Figure()
-        fig2.add_trace(go.Bar(
-            y=ordered_depts, x=vals_prev, name="Sheet1-1 (전월 기준)",
-            orientation="h", marker_color=COLOR_BASE,
-        ))
-        fig2.add_trace(go.Bar(
-            y=ordered_depts, x=vals_new, name="Sheet1 (이번달 기준)",
-            orientation="h", marker_color=COLOR_HIGHLIGHT,
-        ))
-        fig2.update_layout(
-            barmode="group",
-            yaxis=dict(autorange="reversed"),
-            xaxis_title="실적 건수 (건)",
-            height=560,
-        )
-        apply_chart_style(fig2)
-        st.plotly_chart(fig2, use_container_width=True)
+    fig2 = go.Figure()
+    fig2.add_trace(go.Bar(
+        y=ordered_depts, x=vals_prev, name="Sheet1-1 (전월 기준)",
+        orientation="h", marker_color=COLOR_BASE,
+    ))
+    fig2.add_trace(go.Bar(
+        y=ordered_depts, x=vals_new, name="Sheet1 (이번달 기준)",
+        orientation="h", marker_color=COLOR_HIGHLIGHT,
+    ))
+    fig2.update_layout(
+        barmode="group",
+        yaxis=dict(autorange="reversed"),
+        xaxis_title="실적 건수 (건)",
+        height=max(520, 34 * len(ordered_depts)),
+        margin=dict(l=10, r=10, t=40, b=10),
+    )
+    apply_chart_style(fig2)
+    st.plotly_chart(fig2, use_container_width=True)
 
     footnote(
         "※ 데이터 출처: rawdata_2608.xlsx (Sheet1, Sheet1-1) · 기준월은 Sheet1 내 최신 월(일자 기준)로 자동 산정됩니다.<br>"
