@@ -10,7 +10,7 @@ st.set_page_config(page_title="연구실적 대시보드", layout="wide")
 
 DEFAULT_FILE = Path(__file__).parent / "rawdata_2608.xlsx"
 MONTH_ORDER = ["3월", "4월", "5월", "6월", "7월", "8월", "9월", "10월", "11월", "12월", "1월", "2월"]
-RESEARCH_MONTHS = [6, 7, 8]
+RESEARCH_MONTHS = [7, 8]
 
 BG_COLOR = "#F5F7FA"
 SIDEBAR_COLOR = "#0D2B5E"
