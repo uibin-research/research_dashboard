@@ -250,24 +250,27 @@ if page == f"{current_month}월 연구실적 개요":
 
     st.markdown("---")
 
+    st.subheader(f"{current_month}월 단과대학별 실적 건수")
+    by_dept = this_month_combined.groupby("소속(대)").size()
+    ordered_depts = [d for d in DEPT_ORDER if d in by_dept.index] + [
+        d for d in by_dept.index if d not in DEPT_ORDER
+    ]
+    by_dept = by_dept.reindex(ordered_depts)
+    fig = px.bar(x=by_dept.index, y=by_dept.values, labels={"x": "소속(대)", "y": "실적 건수"})
+    fig.update_traces(
+        marker_color="#1D9E75", texttemplate="%{y}", textposition="outside", textfont=dict(size=13)
+    )
+    fig.update_layout(
+        margin=dict(t=20, l=10, r=10, b=10), xaxis_tickangle=-30, plot_bgcolor="white", paper_bgcolor="white"
+    )
+    apply_chart_style(fig, legend=False)
+    st.plotly_chart(fig, use_container_width=True)
+
+    st.markdown("---")
+
     col1, col2 = st.columns(2)
 
     with col1:
-        st.subheader(f"{current_month}월 단과대학별 실적 건수")
-        by_dept = this_month_combined.groupby("소속(대)").size()
-        ordered_depts = [d for d in DEPT_ORDER if d in by_dept.index] + [
-            d for d in by_dept.index if d not in DEPT_ORDER
-        ]
-        by_dept = by_dept.reindex(ordered_depts)
-        fig = px.bar(x=by_dept.index, y=by_dept.values, labels={"x": "소속(대)", "y": "실적 건수"})
-        fig.update_traces(marker_color="#1D9E75")
-        fig.update_layout(
-            margin=dict(t=20, l=10, r=10, b=10), xaxis_tickangle=-30, plot_bgcolor="white", paper_bgcolor="white"
-        )
-        apply_chart_style(fig, legend=False)
-        st.plotly_chart(fig, use_container_width=True)
-
-    with col2:
         st.subheader(f"월별 실적 건수 추이 ({prev_month}월승인 vs {current_month}월승인)")
         fig = go.Figure()
         for label, df_snapshot, color, width in [
@@ -282,51 +285,60 @@ if page == f"{current_month}월 연구실적 개요":
                     x=[f"{m}월" for m in trend.index],
                     y=trend.values,
                     name=label,
-                    mode="lines+markers",
+                    mode="lines+markers+text",
                     line=dict(color=color, width=width),
                     marker=dict(size=9 if color == HIGHLIGHT_COLOR else 6),
+                    text=[str(v) for v in trend.values],
+                    textposition="top center",
+                    textfont=dict(size=12, color=color),
                 )
             )
         fig.update_layout(margin=dict(t=20, l=10, r=10, b=10), plot_bgcolor="white", paper_bgcolor="white")
         apply_chart_style(fig)
         st.plotly_chart(fig, use_container_width=True)
 
-    st.markdown("---")
-    st.subheader("월별 실적 건수 (승인 + 미승인)")
-    combined_current["소스"] = "승인"
-    combined_current.loc[len(df_current_approved) :, "소스"] = "미승인"
-    by_month_source = combined_current.groupby(["월", "소스"]).size().unstack(fill_value=0)
-    for col in ["승인", "미승인"]:
-        if col not in by_month_source.columns:
-            by_month_source[col] = 0
-    by_month_source = by_month_source.reindex(sorted(by_month_source.index))
+    with col2:
+        st.subheader("월별 실적 건수 (승인 + 미승인)")
+        combined_current["소스"] = "승인"
+        combined_current.loc[len(df_current_approved) :, "소스"] = "미승인"
+        by_month_source = combined_current.groupby(["월", "소스"]).size().unstack(fill_value=0)
+        for col in ["승인", "미승인"]:
+            if col not in by_month_source.columns:
+                by_month_source[col] = 0
+        by_month_source = by_month_source.reindex(sorted(by_month_source.index))
 
-    fig = go.Figure()
-    fig.add_trace(
-        go.Bar(
-            x=[f"{m}월" for m in by_month_source.index],
-            y=by_month_source["승인"],
-            name="승인",
-            marker_color=HIGHLIGHT_COLOR,
+        fig = go.Figure()
+        fig.add_trace(
+            go.Bar(
+                x=[f"{m}월" for m in by_month_source.index],
+                y=by_month_source["승인"],
+                name="승인",
+                marker_color=HIGHLIGHT_COLOR,
+                texttemplate="%{y}",
+                textposition="inside",
+                textfont=dict(size=12, color="white"),
+            )
         )
-    )
-    fig.add_trace(
-        go.Bar(
-            x=[f"{m}월" for m in by_month_source.index],
-            y=by_month_source["미승인"],
-            name="미승인",
-            marker_color=BASE_BLUE,
+        fig.add_trace(
+            go.Bar(
+                x=[f"{m}월" for m in by_month_source.index],
+                y=by_month_source["미승인"],
+                name="미승인",
+                marker_color=BASE_BLUE,
+                texttemplate="%{y}",
+                textposition="inside",
+                textfont=dict(size=12, color="white"),
+            )
         )
-    )
-    fig.update_layout(
-        barmode="stack",
-        margin=dict(t=20, l=10, r=10, b=10),
-        plot_bgcolor="white",
-        paper_bgcolor="white",
-        legend_title_text="",
-    )
-    apply_chart_style(fig)
-    st.plotly_chart(fig, use_container_width=True)
+        fig.update_layout(
+            barmode="stack",
+            margin=dict(t=20, l=10, r=10, b=10),
+            plot_bgcolor="white",
+            paper_bgcolor="white",
+            legend_title_text="",
+        )
+        apply_chart_style(fig)
+        st.plotly_chart(fig, use_container_width=True)
 
     render_footnote(
         f"※ {current_month}월 실적 건수는 {current_month}월승인 시트에서 일자가 {current_month}월인 건만 집계한 값입니다(아직 승인되지 않은 건은 제외). "
@@ -371,14 +383,24 @@ elif page == "연도별 월별 연구실적 추이":
 
         fig = px.line(plot_df, x="월", y="실적 건수", color="연도", markers=True, color_discrete_map=color_map)
         for trace in fig.data:
+            values = [None if v is None or pd.isna(v) else v for v in trace.y]
+            text = [("" if v is None else f"{v:.0f}") for v in values]
             if trace.name == HIGHLIGHT_YEAR:
                 trace.line.width = 4
                 trace.marker.size = 9
                 trace.opacity = 1
+                trace.mode = "lines+markers+text"
+                trace.text = text
+                trace.textposition = "top center"
+                trace.textfont = dict(size=12, color=HIGHLIGHT_COLOR)
             else:
                 trace.line.width = 2
                 trace.marker.size = 6
                 trace.opacity = 0.55
+                trace.mode = "lines+markers+text"
+                trace.text = text
+                trace.textposition = "bottom center"
+                trace.textfont = dict(size=10, color=color_map.get(trace.name, BASE_BLUE))
         fig.update_layout(
             margin=dict(t=20, l=10, r=10, b=10), legend_title_text="연도", plot_bgcolor="white", paper_bgcolor="white"
         )
@@ -409,49 +431,65 @@ else:
 
     st.markdown("---")
 
-    st.subheader(f"{collab_month}월 분류별 제안 수 대비 선정 수")
-    by_type = this_month_collab.groupby("분류")[["제안 수", "선정 수"]].sum().reset_index()
-    fig = px.bar(by_type, x="분류", y=["제안 수", "선정 수"], barmode="group")
-    fig.update_layout(margin=dict(t=20, l=10, r=10, b=10), legend_title_text="", plot_bgcolor="white", paper_bgcolor="white")
-    apply_chart_style(fig)
-    st.plotly_chart(fig, use_container_width=True)
+    col1, col2 = st.columns(2)
 
-    st.markdown("---")
+    with col1:
+        st.subheader(f"{collab_month}월 분류별 제안 수 대비 선정 수")
+        by_type = this_month_collab.groupby("분류")[["제안 수", "선정 수"]].sum().reset_index()
+        fig = px.bar(by_type, x="분류", y=["제안 수", "선정 수"], barmode="group")
+        fig.update_traces(texttemplate="%{y}", textposition="outside", textfont=dict(size=12))
+        fig.update_layout(
+            margin=dict(t=20, l=10, r=10, b=10), legend_title_text="", plot_bgcolor="white", paper_bgcolor="white"
+        )
+        apply_chart_style(fig)
+        st.plotly_chart(fig, use_container_width=True)
 
-    st.subheader("월별 선정 수 및 금액(억원) 추이")
-    monthly = (
-        df_collab.dropna(subset=["월_num"])
-        .groupby("월_num")[["선정 수", "금액(억원)"]]
-        .sum()
-        .reindex(all_collab_months, fill_value=0)
-    )
-    fig = make_subplots(specs=[[{"secondary_y": True}]])
-    fig.add_trace(
-        go.Bar(x=[f"{m}월" for m in monthly.index], y=monthly["선정 수"], name="선정 수", marker_color="#7F77DD"),
-        secondary_y=False,
-    )
-    fig.add_trace(
-        go.Scatter(
-            x=[f"{m}월" for m in monthly.index],
-            y=monthly["금액(억원)"],
-            name="금액(억원)",
-            mode="lines+markers",
-            line=dict(color="#D85A30"),
-        ),
-        secondary_y=True,
-    )
-    fig.update_yaxes(title_text="선정 수", secondary_y=False, title_font=dict(size=15), tickfont=dict(size=13))
-    fig.update_yaxes(title_text="금액(억원)", secondary_y=True, title_font=dict(size=15), tickfont=dict(size=13))
-    fig.update_xaxes(tickfont=dict(size=13))
-    fig.update_layout(
-        margin=dict(t=20, l=10, r=10, b=10),
-        legend_title_text="",
-        plot_bgcolor="white",
-        paper_bgcolor="white",
-        font=dict(size=15),
-        legend=dict(font=dict(size=15)),
-    )
-    st.plotly_chart(fig, use_container_width=True)
+    with col2:
+        st.subheader("월별 선정 수 및 금액(억원) 추이")
+        monthly = (
+            df_collab.dropna(subset=["월_num"])
+            .groupby("월_num")[["선정 수", "금액(억원)"]]
+            .sum()
+            .reindex(all_collab_months, fill_value=0)
+        )
+        fig = make_subplots(specs=[[{"secondary_y": True}]])
+        fig.add_trace(
+            go.Bar(
+                x=[f"{m}월" for m in monthly.index],
+                y=monthly["선정 수"],
+                name="선정 수",
+                marker_color="#7F77DD",
+                texttemplate="%{y}",
+                textposition="outside",
+                textfont=dict(size=12),
+            ),
+            secondary_y=False,
+        )
+        fig.add_trace(
+            go.Scatter(
+                x=[f"{m}월" for m in monthly.index],
+                y=monthly["금액(억원)"],
+                name="금액(억원)",
+                mode="lines+markers+text",
+                line=dict(color="#D85A30"),
+                text=[f"{v:.1f}" for v in monthly["금액(억원)"]],
+                textposition="top center",
+                textfont=dict(size=12, color="#D85A30"),
+            ),
+            secondary_y=True,
+        )
+        fig.update_yaxes(title_text="선정 수", secondary_y=False, title_font=dict(size=15), tickfont=dict(size=13))
+        fig.update_yaxes(title_text="금액(억원)", secondary_y=True, title_font=dict(size=15), tickfont=dict(size=13))
+        fig.update_xaxes(tickfont=dict(size=13))
+        fig.update_layout(
+            margin=dict(t=20, l=10, r=10, b=10),
+            legend_title_text="",
+            plot_bgcolor="white",
+            paper_bgcolor="white",
+            font=dict(size=15),
+            legend=dict(font=dict(size=15)),
+        )
+        st.plotly_chart(fig, use_container_width=True)
 
     st.markdown("---")
     st.subheader(f"{collab_month}월 산학협력 상세")
