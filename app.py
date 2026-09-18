@@ -20,6 +20,8 @@ HIGHLIGHT_YEAR = "2026"
 
 LIGHT_BLUE = "#DCEAF7"
 DARK_BLUE = "#1D5FA8"
+LIGHT_ORANGE = "#FDE0C2"
+DARK_ORANGE = "#C2560A"
 
 PERF_COLS = ["소속(대)", "구분명칭", "연구분류", "일자"]
 
@@ -33,11 +35,11 @@ def _rgb_to_hex(rgb):
     return "#{:02X}{:02X}{:02X}".format(*[round(c) for c in rgb])
 
 
-def blue_gradient(n):
-    """가장 오래된 연도가 가장 옅고, 최신일수록 짙어지는 파란색 n개를 반환"""
+def color_gradient(n, light, dark):
+    """light색에서 dark색으로 균등하게 보간한 색상 n개를 반환 (가장 오래된 순서가 light)"""
     if n <= 1:
-        return [DARK_BLUE]
-    c1, c2 = _hex_to_rgb(LIGHT_BLUE), _hex_to_rgb(DARK_BLUE)
+        return [dark]
+    c1, c2 = _hex_to_rgb(light), _hex_to_rgb(dark)
     return [
         _rgb_to_hex(tuple(c1[i] + (c2[i] - c1[i]) * (step / (n - 1)) for i in range(3)))
         for step in range(n)
@@ -378,7 +380,7 @@ elif page == "연도별 월별 연구실적 추이":
         plot_df = plot_df.sort_values("월")
 
         non_highlight_years = sorted(y for y in trend_data.keys() if y != HIGHLIGHT_YEAR)
-        gradient = blue_gradient(len(non_highlight_years))
+        gradient = color_gradient(len(non_highlight_years), LIGHT_ORANGE, DARK_ORANGE)
         color_map = dict(zip(non_highlight_years, gradient))
         color_map[HIGHLIGHT_YEAR] = HIGHLIGHT_COLOR
 
