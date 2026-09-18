@@ -13,8 +13,9 @@ MONTH_ORDER = ["3월", "4월", "5월", "6월", "7월", "8월", "9월", "10월", 
 
 BG_COLOR = "#F5F7FA"
 SIDEBAR_COLOR = "#0D2B5E"
-HIGHLIGHT_COLOR = "#E8392A"
+HIGHLIGHT_COLOR = "#0057FF"
 BASE_BLUE = "#93B8E0"
+UNAPPROVED_RED = "#E8392A"
 HIGHLIGHT_YEAR = "2026"
 
 LIGHT_BLUE = "#DCEAF7"
@@ -324,7 +325,7 @@ if page == f"{current_month}월 연구실적 개요":
                 x=[f"{m}월" for m in by_month_source.index],
                 y=by_month_source["미승인"],
                 name="미승인",
-                marker_color=BASE_BLUE,
+                marker_color=UNAPPROVED_RED,
                 texttemplate="%{y}",
                 textposition="inside",
                 textfont=dict(size=12, color="white"),
@@ -343,8 +344,8 @@ if page == f"{current_month}월 연구실적 개요":
     render_footnote(
         f"※ {current_month}월 실적 건수는 {current_month}월승인 시트에서 일자가 {current_month}월인 건만 집계한 값입니다(아직 승인되지 않은 건은 제외). "
         f"승인 건수 증감은 {current_month}월승인 시트와 {prev_month}월승인 시트의 전체 행 수 차이입니다. "
-        f"월별 실적 건수 추이는 {prev_month}월승인(파랑)과 {current_month}월승인(빨강) 두 시점의 승인 데이터를 비교하며, "
-        "하단 막대는 승인(빨강)·미승인(파랑)을 함께 표시합니다."
+        f"월별 실적 건수 추이는 {prev_month}월승인(연한 파랑)과 {current_month}월승인(진한 파랑) 두 시점의 승인 데이터를 비교하며, "
+        "하단 막대는 승인(파랑)·미승인(빨강)을 함께 표시합니다."
     )
 
 elif page == "연도별 월별 연구실적 추이":
@@ -412,7 +413,7 @@ elif page == "연도별 월별 연구실적 추이":
         st.dataframe(trend_df, use_container_width=True)
 
         render_footnote(
-            f"※ {', '.join(sorted(year_sheets.keys()))} 시트 기준이며, {HIGHLIGHT_YEAR}년은 빨간색으로 강조 표시됩니다. "
+            f"※ {', '.join(sorted(year_sheets.keys()))} 시트 기준이며, {HIGHLIGHT_YEAR}년은 원색 파란색으로 강조 표시됩니다. "
             "아직 데이터가 없는 미래 월은 빈 값으로 처리되어 선이 끊깁니다."
         )
 
