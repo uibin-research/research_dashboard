@@ -231,12 +231,16 @@ if page == f"{current_month}월 연구실적 개요":
     combined_current = pd.concat([df_current_approved, df_current_unapproved], ignore_index=True)
     this_month_combined = combined_current[combined_current["월"] == current_month]
 
-    perf_count = len(this_month_combined)
+    perf_count = len(df_current_approved[df_current_approved["월"] == current_month])
     approved_delta = len(df_current_approved) - len(df_prev_approved)
 
     col1, col2 = st.columns(2)
     with col1:
-        st.metric(f"{current_month}월 실적 건수", f"{perf_count}건")
+        st.metric(
+            f"{current_month}월 실적 건수",
+            f"{perf_count}건",
+            help=f"{current_month}월승인 시트에서 일자가 {current_month}월인 건만 집계",
+        )
     with col2:
         st.metric(
             f"{current_month}월 승인 건수 증감",
@@ -264,15 +268,27 @@ if page == f"{current_month}월 연구실적 개요":
         st.plotly_chart(fig, use_container_width=True)
 
     with col2:
-        st.subheader("월별 실적 건수 추이 (승인 기준)")
-        trend = df_current_approved.dropna(subset=["월"]).groupby("월").size()
-        months_present = sorted(set(df_current_approved["월"].dropna().astype(int)) | {current_month})
-        trend = trend.reindex(months_present, fill_value=0)
-        trend_df = pd.DataFrame({"월": [f"{m}월" for m in trend.index], "실적 건수": trend.values})
-        fig = px.line(trend_df, x="월", y="실적 건수", markers=True)
-        fig.update_traces(line_color="#378ADD")
+        st.subheader(f"월별 실적 건수 추이 ({prev_month}월승인 vs {current_month}월승인)")
+        fig = go.Figure()
+        for label, df_snapshot, color, width in [
+            (f"{prev_month}월승인", df_prev_approved, BASE_BLUE, 2),
+            (f"{current_month}월승인", df_current_approved, HIGHLIGHT_COLOR, 4),
+        ]:
+            trend = df_snapshot.dropna(subset=["월"]).groupby("월").size()
+            months_present = sorted(set(df_prev_approved["월"].dropna().astype(int)) | set(df_current_approved["월"].dropna().astype(int)))
+            trend = trend.reindex(months_present, fill_value=0)
+            fig.add_trace(
+                go.Scatter(
+                    x=[f"{m}월" for m in trend.index],
+                    y=trend.values,
+                    name=label,
+                    mode="lines+markers",
+                    line=dict(color=color, width=width),
+                    marker=dict(size=9 if color == HIGHLIGHT_COLOR else 6),
+                )
+            )
         fig.update_layout(margin=dict(t=20, l=10, r=10, b=10), plot_bgcolor="white", paper_bgcolor="white")
-        apply_chart_style(fig, legend=False)
+        apply_chart_style(fig)
         st.plotly_chart(fig, use_container_width=True)
 
     st.markdown("---")
@@ -313,9 +329,10 @@ if page == f"{current_month}월 연구실적 개요":
     st.plotly_chart(fig, use_container_width=True)
 
     render_footnote(
-        f"※ {current_month}월 실적 건수는 {current_month}월승인·{current_month}월미승인 시트를 합쳐 일자 기준 {current_month}월인 건만 집계했습니다. "
+        f"※ {current_month}월 실적 건수는 {current_month}월승인 시트에서 일자가 {current_month}월인 건만 집계한 값입니다(아직 승인되지 않은 건은 제외). "
         f"승인 건수 증감은 {current_month}월승인 시트와 {prev_month}월승인 시트의 전체 행 수 차이입니다. "
-        "월별 실적 건수 추이(선)는 승인 데이터만 반영하며, 하단 막대는 승인(빨강)·미승인(파랑)을 함께 표시합니다."
+        f"월별 실적 건수 추이는 {prev_month}월승인(파랑)과 {current_month}월승인(빨강) 두 시점의 승인 데이터를 비교하며, "
+        "하단 막대는 승인(빨강)·미승인(파랑)을 함께 표시합니다."
     )
 
 elif page == "연도별 월별 연구실적 추이":
