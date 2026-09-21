@@ -491,13 +491,17 @@ unapproved_data = data["unapproved_data"]
 collab_data = data["collab_data"]
 year_sheets = data["year_sheets"]
 
-PAGES = []
+MONTHLY_PAGES = []
 for m in RESEARCH_MONTHS:
-    PAGES.append(f"{m}월 연구실적 개요")
-    PAGES.append(f"{m}월 산학협력 개요")
-PAGES.append("연도별 월별 연구실적 추이")
+    MONTHLY_PAGES.append(f"{m}월 연구실적 개요")
+    MONTHLY_PAGES.append(f"{m}월 산학협력 개요")
+YEAR_PAGE = "연도별 월별 연구실적 추이"
 
-page = st.sidebar.radio("페이지 선택", PAGES)
+nav_choice = st.sidebar.radio("메뉴", ["월별 현황", YEAR_PAGE])
+if nav_choice == "월별 현황":
+    page = st.sidebar.selectbox("페이지 선택", MONTHLY_PAGES)
+else:
+    page = YEAR_PAGE
 
 file_label = file_to_use.name if hasattr(file_to_use, "name") else Path(file_to_use).name
 st.sidebar.markdown("---")
