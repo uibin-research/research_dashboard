@@ -10,7 +10,7 @@ st.set_page_config(page_title="연구실적 대시보드", layout="wide")
 
 DEFAULT_FILE = Path(__file__).parent / "rawdata_2608.xlsx"
 MONTH_ORDER = ["3월", "4월", "5월", "6월", "7월", "8월", "9월", "10월", "11월", "12월", "1월", "2월"]
-RESEARCH_MONTHS = [7, 8]
+RESEARCH_MONTHS = [8, 7]
 
 BG_COLOR = "#F5F7FA"
 SIDEBAR_COLOR = "#0D2B5E"
@@ -199,7 +199,6 @@ def render_research_page(month, current_approved, prev_month, prev_approved, cur
     st.title(f"{month}월 연구실적 개요")
 
     combined_current = pd.concat([current_approved, current_unapproved], ignore_index=True)
-    this_month_combined = combined_current[combined_current["월"] == month]
 
     perf_count = len(current_approved[current_approved["월"] == month])
     approved_delta = len(current_approved) - len(prev_approved)
@@ -217,24 +216,6 @@ def render_research_page(month, current_approved, prev_month, prev_approved, cur
             f"{approved_delta:+d}건",
             help=f"{month}월승인 시트 행 수({len(current_approved)}) − {prev_month}월승인 시트 행 수({len(prev_approved)})",
         )
-
-    st.markdown("---")
-
-    st.subheader(f"{month}월 단과대학별 실적 건수")
-    by_dept = this_month_combined.groupby("소속(대)").size()
-    ordered_depts = [d for d in DEPT_ORDER if d in by_dept.index] + [
-        d for d in by_dept.index if d not in DEPT_ORDER
-    ]
-    by_dept = by_dept.reindex(ordered_depts)
-    fig = px.bar(x=by_dept.index, y=by_dept.values, labels={"x": "소속(대)", "y": "실적 건수"})
-    fig.update_traces(
-        marker_color="#1D9E75", texttemplate="%{y}", textposition="outside", textfont=dict(size=13)
-    )
-    fig.update_layout(
-        margin=dict(t=20, l=10, r=10, b=10), xaxis_tickangle=-30, plot_bgcolor="white", paper_bgcolor="white"
-    )
-    apply_chart_style(fig, legend=False)
-    st.plotly_chart(fig, use_container_width=True)
 
     st.markdown("---")
 
