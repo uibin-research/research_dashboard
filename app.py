@@ -459,11 +459,10 @@ def render_year_trend_page(year_sheets):
 
 
 st.sidebar.title("연구실적 대시보드")
-uploaded = st.sidebar.file_uploader("데이터 파일 업로드 (.xlsx)", type=["xlsx"])
-file_to_use = uploaded if uploaded is not None else DEFAULT_FILE
+file_to_use = DEFAULT_FILE
 
-if uploaded is None and not DEFAULT_FILE.exists():
-    st.error("데이터 파일을 찾을 수 없습니다. 사이드바에서 엑셀 파일을 업로드해주세요.")
+if not DEFAULT_FILE.exists():
+    st.error(f"데이터 파일을 찾을 수 없습니다: {DEFAULT_FILE.name}")
     st.stop()
 
 data = load_data(file_to_use)
@@ -478,15 +477,14 @@ for m in RESEARCH_MONTHS:
     MONTHLY_PAGES.append(f"{m}월 산학협력 개요")
 YEAR_PAGE = "연도별 월별 연구실적 추이"
 
-nav_choice = st.sidebar.radio("메뉴", ["월별 현황", YEAR_PAGE])
+nav_choice = st.sidebar.radio("메뉴", [YEAR_PAGE, "월별 현황"])
 if nav_choice == "월별 현황":
     page = st.sidebar.selectbox("페이지 선택", MONTHLY_PAGES)
 else:
     page = YEAR_PAGE
 
-file_label = file_to_use.name if hasattr(file_to_use, "name") else Path(file_to_use).name
 st.sidebar.markdown("---")
-st.sidebar.caption(f"데이터 파일: {file_label}")
+st.sidebar.caption(f"데이터 파일: {file_to_use.name}")
 
 matched_research = re.match(r"^(\d{1,2})월 연구실적 개요$", page)
 matched_collab = re.match(r"^(\d{1,2})월 산학협력 개요$", page)
