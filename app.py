@@ -181,6 +181,9 @@ def load_data(file):
             df_year = pd.read_excel(xls, sheet_name=name)
             df_year.columns = [str(c).strip() for c in df_year.columns]
             df_year = df_year.set_index(df_year.columns[0])
+            # 데이터가 없는 셀은 '-' 등 문자로 표기되는 경우가 있어 숫자로 강제 변환(실패 시 NaN)한다.
+            # 이렇게 하지 않으면 문자와 숫자가 섞인 컬럼을 합산할 때 TypeError가 발생한다.
+            df_year = df_year.apply(pd.to_numeric, errors="coerce")
             year_sheets[str(name).strip()] = df_year
 
     return {
